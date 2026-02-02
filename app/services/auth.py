@@ -29,14 +29,52 @@ from app.redis import SessionStore, TokenBlacklist
 from app.schemas.auth import RegisterRequest, TokenResponse
 
 
+class NoOpTokenBlacklist:
+    """No-op token blacklist when Redis is not available."""
+    
+    async def add(self, jti: str, expires_in: int) -> None:
+        pass
+    
+    async def is_blacklisted(self, jti: str) -> bool:
+        return False
+    
+    async def remove(self, jti: str) -> None:
+        pass
+
+
+class NoOpSessionStore:
+    """No-op session store when Redis is not available."""
+    
+    async def create(self, session_id: str, user_id: str, refresh_token: str, expires_in: int) -> None:
+        pass
+    
+    async def get(self, session_id: str) -> Optional[dict]:
+        # Return a fake session to allow operations to proceed
+        return {"user_id": "", "refresh_token": ""}
+    
+    async def delete(self, session_id: str) -> None:
+        pass
+    
+    async def delete_all_user_sessions(self, user_id: str) -> int:
+        return 0
+    
+    async def get_user_session_count(self, user_id: str) -> int:
+        return 0
+
+
 class AuthService:
     """Service for authentication operations."""
 
-    def __init__(self, db: AsyncSession, redis_client: redis.Redis):
+    def __init__(self, db: AsyncSession, redis_client: Optional[redis.Redis] = None):
         self.db = db
         self.redis = redis_client
-        self.token_blacklist = TokenBlacklist(redis_client)
-        self.session_store = SessionStore(redis_client)
+        # Use real implementations if Redis is available, otherwise use no-ops
+        if redis_client is not None:
+            self.token_blacklist = TokenBlacklist(redis_client)
+            self.session_store = SessionStore(redis_client)
+        else:
+            self.token_blacklist = NoOpTokenBlacklist()
+            self.session_store = NoOpSessionStore()
 
     async def register(self, data: RegisterRequest) -> User:
         """

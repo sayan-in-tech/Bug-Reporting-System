@@ -11,9 +11,17 @@ redis_pool: Optional[redis.ConnectionPool] = None
 redis_client: Optional[redis.Redis] = None
 
 
-async def init_redis() -> redis.Redis:
+def is_redis_configured() -> bool:
+    """Check if Redis is configured."""
+    return bool(settings.redis_url and settings.redis_url.strip())
+
+
+async def init_redis() -> Optional[redis.Redis]:
     """Initialize Redis connection pool."""
     global redis_pool, redis_client
+
+    if not is_redis_configured():
+        return None
 
     redis_pool = redis.ConnectionPool.from_url(
         settings.redis_url,
@@ -29,8 +37,10 @@ async def init_redis() -> redis.Redis:
     return redis_client
 
 
-async def get_redis() -> redis.Redis:
-    """Get Redis client dependency."""
+async def get_redis() -> Optional[redis.Redis]:
+    """Get Redis client dependency. Returns None if Redis is not configured."""
+    if not is_redis_configured():
+        return None
     if redis_client is None:
         return await init_redis()
     return redis_client

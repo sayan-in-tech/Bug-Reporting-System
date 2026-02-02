@@ -41,6 +41,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         try:
             redis_client = await get_redis()
+            
+            # If Redis is not configured, skip rate limiting
+            if redis_client is None:
+                return await call_next(request)
+            
             rate_limiter = RateLimiter(redis_client)
 
             # Check rate limit

@@ -27,9 +27,13 @@ router = APIRouter()
 
 async def check_login_rate_limit(
     request: Request,
-    redis_client: Annotated[redis.Redis, Depends(get_redis)],
+    redis_client: Annotated[redis.Redis | None, Depends(get_redis)],
 ) -> None:
     """Check rate limit for login attempts."""
+    # Skip rate limiting if Redis is not available
+    if redis_client is None:
+        return
+    
     client_ip = request.client.host if request.client else "unknown"
     rate_limiter = RateLimiter(redis_client)
 
