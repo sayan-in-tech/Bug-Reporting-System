@@ -2,11 +2,12 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   release:
     types: [published]
+  workflow_dispatch:  # Allow manual trigger
 
 env:
   PYTHON_VERSION: "3.12"

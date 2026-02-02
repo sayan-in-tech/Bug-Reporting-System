@@ -2,21 +2,8 @@
 
 import asyncio
 import os
-from typing import AsyncGenerator, Generator
-from uuid import uuid4
 
-import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-
-from app.database import Base, get_db
-from app.models.user import User, UserRole
-from app.core.security import hash_password
-
-# Generate test JWT keys if not present
+# Set test environment variables BEFORE any app imports
 TEST_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MaXX9eKux8nmwP5Y
 Nhjd4EG3q4Z8r3YmC4qPdFl0j5IwRAu8HxRmI2FBJZPiT6r/eOqR9B6oCu1j4ixJ
@@ -55,14 +42,28 @@ I2kA5v3RMPPdnXsXBCAX7GsAnYaCTYZ8bEjEbOZmoTVsFmFi4RHw0aMPPvH9e7mC
 zwIDAQAB
 -----END PUBLIC KEY-----"""
 
-# Set test environment variables
-os.environ.setdefault("JWT_PRIVATE_KEY", TEST_PRIVATE_KEY)
-os.environ.setdefault("JWT_PUBLIC_KEY", TEST_PUBLIC_KEY)
-os.environ.setdefault("APP_ENV", "testing")
-os.environ.setdefault("DEBUG", "true")
+# MUST set environment variables before importing anything from app
+os.environ["APP_ENV"] = "testing"
+os.environ["DEBUG"] = "true"
+os.environ["JWT_PRIVATE_KEY"] = TEST_PRIVATE_KEY
+os.environ["JWT_PUBLIC_KEY"] = TEST_PUBLIC_KEY
 
-# Import app after setting env vars
-from app.main import app  # noqa: E402
+# Now safe to import from typing and other standard libraries
+from typing import AsyncGenerator, Generator
+from uuid import uuid4
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+
+# Now import app modules (after env vars are set)
+from app.database import Base, get_db
+from app.models.user import User, UserRole
+from app.core.security import hash_password
+from app.main import app
 
 
 @pytest.fixture(scope="session")

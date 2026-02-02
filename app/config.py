@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Application Settings
     app_name: str = "Bug Reporting System"
-    app_env: Literal["development", "staging", "production"] = "development"
+    app_env: Literal["development", "staging", "production", "testing"] = "development"
     debug: bool = False
     api_v1_prefix: str = "/api"
 
@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development."""
         return self.app_env == "development"
+
+    @property
+    def is_testing(self) -> bool:
+        """Check if running in testing."""
+        return self.app_env == "testing"
 
 
 @lru_cache
