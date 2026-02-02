@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -21,7 +21,7 @@ RUN pip wheel --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 
 # Production stage
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -66,17 +66,18 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 
 
 # Development stage
-FROM production as development
+FROM production AS development
 
 # Switch to root for installing dev dependencies
 USER root
 
-# Copy dev requirements and install
-COPY requirements-dev.txt .
+# Copy both requirements files and install dev dependencies
+COPY requirements.txt requirements-dev.txt ./
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
-# Copy test files
+# Copy test files and scripts
 COPY --chown=appuser:appgroup tests ./tests
+COPY --chown=appuser:appgroup scripts ./scripts
 COPY --chown=appuser:appgroup pyproject.toml ./
 
 # Switch back to non-root user

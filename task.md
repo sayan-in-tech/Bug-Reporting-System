@@ -365,5 +365,3 @@ Includes:
 - Quality over quantity  
 
 ---
-
-**AI4Bharat Confidential**

@@ -45,10 +45,10 @@ class Comment(Base):
         index=True,
     )
 
-    # Author reference (protect on delete)
+    # Author reference (restrict on delete - prevents user deletion if they authored comments)
     author_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="PROTECT"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )

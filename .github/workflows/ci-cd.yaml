@@ -67,7 +67,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pip-audit bandit safety
+          pip install pip-audit bandit
           pip install -r requirements.txt
 
       - name: Run pip-audit (dependency vulnerabilities)
@@ -76,10 +76,6 @@ jobs:
 
       - name: Run bandit (code security)
         run: bandit -r app -ll -ii
-
-      - name: Run safety check
-        run: safety check --full-report
-        continue-on-error: true
 
   # =============================================================================
   # Testing

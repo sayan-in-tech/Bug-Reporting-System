@@ -76,13 +76,13 @@ class Issue(Base):
 
     # Status and priority
     status: Mapped[IssueStatus] = mapped_column(
-        Enum(IssueStatus, name="issue_status"),
+        Enum(IssueStatus, name="issue_status", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=IssueStatus.OPEN,
         index=True,
     )
     priority: Mapped[IssuePriority] = mapped_column(
-        Enum(IssuePriority, name="issue_priority"),
+        Enum(IssuePriority, name="issue_priority", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=IssuePriority.MEDIUM,
         index=True,
@@ -96,10 +96,10 @@ class Issue(Base):
         index=True,
     )
 
-    # Reporter reference (protect on delete)
+    # Reporter reference (restrict on delete - prevents user deletion if they reported issues)
     reporter_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="PROTECT"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
