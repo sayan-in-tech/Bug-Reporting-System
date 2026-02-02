@@ -46,14 +46,13 @@ os.environ["APP_ENV"] = "testing"
 os.environ["DEBUG"] = "true"
 os.environ["JWT_PRIVATE_KEY"] = TEST_PRIVATE_KEY
 os.environ["JWT_PUBLIC_KEY"] = TEST_PUBLIC_KEY
-# Use SQLite for tests - faster and no external dependency
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
+# Use in-memory SQLite for tests - fastest option
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-# Now safe to import from typing and other standard libraries
+# Now safe to import
 from typing import AsyncGenerator
 from uuid import uuid4
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -73,48 +72,31 @@ def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-# Create a single engine for all tests
-_test_engine = None
-
-
-async def get_test_engine():
-    """Get or create the test database engine."""
-    global _test_engine
-    if _test_engine is None:
-        _test_engine = create_async_engine(
-            "sqlite+aiosqlite:///./test.db",
-            echo=False,
-        )
-        async with _test_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
-    return _test_engine
-
-
 @pytest_asyncio.fixture
-async def db_engine():
-    """Create a test database engine using SQLite."""
-    engine = await get_test_engine()
-    yield engine
-
-
-@pytest_asyncio.fixture
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session."""
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh in-memory database for each test."""
+    # Create new engine for each test (in-memory DB is isolated)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False,
+    )
+    
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    # Create session
     async_session_factory = async_sessionmaker(
-        db_engine,
+        engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
     async with async_session_factory() as session:
-        # Clean up tables before each test
-        for table in reversed(Base.metadata.sorted_tables):
-            await session.execute(table.delete())
-        await session.commit()
-        
         yield session
-        await session.rollback()
+    
+    # Cleanup
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
