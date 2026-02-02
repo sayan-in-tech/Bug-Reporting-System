@@ -62,8 +62,16 @@ from sqlalchemy.pool import NullPool
 # Now import app modules (after env vars are set)
 from app.database import Base, get_db
 from app.models.user import User, UserRole
-from app.core.security import hash_password
+from app.models.project import Project
+from app.models.issue import Issue, IssuePriority, IssueStatus
+from app.models.comment import Comment
+from app.core.security import hash_password, create_access_token
 from app.main import app
+
+
+def auth_header(token: str) -> dict:
+    """Create authorization header with Bearer token."""
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture(scope="session")
@@ -179,3 +187,86 @@ async def manager_user(db_session: AsyncSession) -> User:
     await db_session.commit()
     await db_session.refresh(user)
     return user
+
+
+@pytest_asyncio.fixture
+async def user_token(test_user: User) -> str:
+    """Create a JWT token for the test user."""
+    return create_access_token(
+        user_id=str(test_user.id),
+        role=test_user.role,
+        session_id=str(uuid4()),
+    )
+
+
+@pytest_asyncio.fixture
+async def admin_token(admin_user: User) -> str:
+    """Create a JWT token for the admin user."""
+    return create_access_token(
+        user_id=str(admin_user.id),
+        role=admin_user.role,
+        session_id=str(uuid4()),
+    )
+
+
+@pytest_asyncio.fixture
+async def manager_token(manager_user: User) -> str:
+    """Create a JWT token for the manager user."""
+    return create_access_token(
+        user_id=str(manager_user.id),
+        role=manager_user.role,
+        session_id=str(uuid4()),
+    )
+
+
+@pytest_asyncio.fixture
+async def test_project(db_session: AsyncSession, admin_user: User) -> Project:
+    """Create a test project."""
+    project = Project(
+        id=uuid4(),
+        name="Test Project",
+        description="A test project for testing purposes",
+        created_by=admin_user.id,
+        is_archived=False,
+    )
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+    return project
+
+
+@pytest_asyncio.fixture
+async def test_issue(
+    db_session: AsyncSession, test_project: Project, test_user: User
+) -> Issue:
+    """Create a test issue."""
+    issue = Issue(
+        id=uuid4(),
+        title="Test Issue",
+        description="A test issue for testing purposes",
+        status=IssueStatus.OPEN,
+        priority=IssuePriority.MEDIUM,
+        project_id=test_project.id,
+        reporter_id=test_user.id,
+    )
+    db_session.add(issue)
+    await db_session.commit()
+    await db_session.refresh(issue)
+    return issue
+
+
+@pytest_asyncio.fixture
+async def test_comment(
+    db_session: AsyncSession, test_issue: Issue, test_user: User
+) -> Comment:
+    """Create a test comment."""
+    comment = Comment(
+        id=uuid4(),
+        content="Test comment content",
+        issue_id=test_issue.id,
+        author_id=test_user.id,
+    )
+    db_session.add(comment)
+    await db_session.commit()
+    await db_session.refresh(comment)
+    return comment
