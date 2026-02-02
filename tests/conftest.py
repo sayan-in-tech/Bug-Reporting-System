@@ -47,6 +47,8 @@ os.environ["APP_ENV"] = "testing"
 os.environ["DEBUG"] = "true"
 os.environ["JWT_PRIVATE_KEY"] = TEST_PRIVATE_KEY
 os.environ["JWT_PUBLIC_KEY"] = TEST_PUBLIC_KEY
+# Use SQLite for tests - faster and no external dependency
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
 
 # Now safe to import from typing and other standard libraries
 from typing import AsyncGenerator, Generator
@@ -55,9 +57,8 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 # Now import app modules (after env vars are set)
 from app.database import Base, get_db
@@ -77,24 +78,27 @@ def auth_header(token: str) -> dict:
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest_asyncio.fixture(scope="function")
+# Use a module-scoped engine to avoid recreation overhead
+@pytest_asyncio.fixture(scope="module")
 async def db_engine():
-    """Create a test database engine."""
-    # Use PostgreSQL from environment or default test database
-    database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/bug_tracker_test",
+    """Create a test database engine using SQLite."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///./test.db",
+        echo=False,
     )
 
-    engine = create_async_engine(
-        database_url,
-        poolclass=NullPool,
-    )
+    # Enable foreign keys for SQLite
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -111,13 +115,13 @@ async def db_engine():
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session."""
-    async_session = sessionmaker(
+    async_session_factory = async_sessionmaker(
         db_engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
-    async with async_session() as session:
+    async with async_session_factory() as session:
         yield session
         await session.rollback()
 
