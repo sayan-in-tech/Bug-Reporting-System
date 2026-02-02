@@ -1,6 +1,5 @@
 """Pytest configuration and fixtures."""
 
-import asyncio
 import os
 
 # Set test environment variables BEFORE any app imports
@@ -51,13 +50,12 @@ os.environ["JWT_PUBLIC_KEY"] = TEST_PUBLIC_KEY
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
 
 # Now safe to import from typing and other standard libraries
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 # Now import app modules (after env vars are set)
@@ -75,44 +73,32 @@ def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an event loop for the test session."""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
+# Create a single engine for all tests
+_test_engine = None
 
 
-# Use a module-scoped engine to avoid recreation overhead
-@pytest_asyncio.fixture(scope="module")
+async def get_test_engine():
+    """Get or create the test database engine."""
+    global _test_engine
+    if _test_engine is None:
+        _test_engine = create_async_engine(
+            "sqlite+aiosqlite:///./test.db",
+            echo=False,
+        )
+        async with _test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+    return _test_engine
+
+
+@pytest_asyncio.fixture
 async def db_engine():
     """Create a test database engine using SQLite."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///./test.db",
-        echo=False,
-    )
-
-    # Enable foreign keys for SQLite
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
+    engine = await get_test_engine()
     yield engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session."""
     async_session_factory = async_sessionmaker(
@@ -122,11 +108,16 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     )
 
     async with async_session_factory() as session:
+        # Clean up tables before each test
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(table.delete())
+        await session.commit()
+        
         yield session
         await session.rollback()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with the test database."""
 
