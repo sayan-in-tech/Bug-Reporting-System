@@ -1,58 +1,23 @@
 """Pytest configuration and fixtures."""
 
 import os
+from unittest.mock import AsyncMock, MagicMock
 
 # Set test environment variables BEFORE any app imports
-TEST_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MaXX9eKux8nmwP5Y
-Nhjd4EG3q4Z8r3YmC4qPdFl0j5IwRAu8HxRmI2FBJZPiT6r/eOqR9B6oCu1j4ixJ
-v5E7d6dC7c+M6K9odNCLf8wC3Z2Wnj9EwkNYqKQKKrJm+0VdC9kYTVmLJBGmGsnQ
-QJlqHB5pdMFuT8EHEGzBgO3SSVIrA4Q6M3SYvNX4qwVhH0+aPWOrfP5W7eNL2P2r
-k2v7mMGO8foDqRm0f2Ey2Xo10ck0cD3cEqZmI2kA5v3RMPPdnXsXBCAX7GsAnYaC
-TYZ8bEjEbOZmoTVsFmFi4RHw0aMPPvH9e7mCzwIDAQABAoIBAC5RgZ+hBx7xHnFZ
-nQmY9IyGvQWNTl1lBvzP0NJlqHGFotPlyMDMVYzy182lIU7KfzxpBhBvzF4o6cHv
-cXQb3M5VJ5t+ZzpFbLhaBjCnW/gi8f3p/7cMS0Kn1PNTA3CX2c5iFDJeG5CVNcNC
-Euo/W0qL0DAXX4G13N+PQx4/zrHBj9T5x1QxsXsOEh7aR2wdxFyupD3FLi0ZMNBA
-bGCCzvoADQ8xL7WpWKaXYKG8G5h0x1YRZeTPrvmTQx0vLBCS+mZs1GK1c6ct9QBT
-qhc7wHJ4CpSXLNPyDQrBcZ9NeYg8GGi+L9E9f+HmMYIy7frGYmrVDB9fq8M9JFYE
-dYaHqWECgYEA7mI9sK0I6Kf3Yw7YT3Fm9l0R15H6kL18iwG0bLC9z4D0ez0C/5TZ
-j9g0kvUKUg4VK5hJ3N3FpUOyPLHB56pYQ0LM6Q0bWa1O0ymPe2e3bQ3y4q0IL0hj
-7W0faP0fjhy4VU35yPH9gQyb8mVKFf0f6pCCmL9xD6Be+PDn6CpPyHkCgYEA4SOY
-6uzJYJ7A0fRz3Tqie/YdnpCkwz8l5npnJKNvFzVE5jJUbvBDo6L+l7bxPQs4LBTj
-x9yLX9BqCl2fjLgCBq4JwIRb7PhdnLV5WNHBQy9p+fPD0vO9pPyU8Vcf8jPNL6Wu
-PMBhkhc4bvawCmS2d1UhJIr6dGtONM1yMm79rW8CgYEAwsxlJL09HrLDnxP3qpMT
-q4H/9AQ3nsjJB0GLDJfIy7nKcTxQhzx8bmc7LGCR6sP+FvDxDE8qRmT/k3DRQwSD
-tZ3Gj0KMLZ7xPObxsULmrQ+gLyP5Wo58J3aMBl1h0D1IhT7QGh4f0RrsC+3h4qEZ
-1YLH5bwPofxeUY4L0O3mHYECgYAy0hcGfIRzeeE5u+EfxiM5xD6R7kE0M7QKVHGU
-mI7Lwfs8dYn3/1sKhKJvMGFxb0Yz/FfPJqW9cX6DaWb5fKRnoqPnqF0LM5pMwGZn
-mbv+M5II4rlCP1TneLFb1n7sHHPuOQh7eoMGNa8cfXVqCsYOso5WEqUHBwpCXDBE
-8S2k6wKBgQCEPLB9QoIfLHTJBZSCYqymH6nh2GCta5s0yr89ns6gk6HDP1G1x0ND
-RzLO8jDdgC1q9pPXv9H7Jhz5B0Lx1S0nQuxT7MRGZ5m2O7HJHPbqLbLnNoBMu+xn
-L3EtLKxZLmMF5GPKkjT3qT3QJ5VhKz4D3tvYHdty6Hxq4xF0vJxdXw==
------END RSA PRIVATE KEY-----"""
-
-TEST_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy
-F8PbnGy0AHB7MaXX9eKux8nmwP5YNhjd4EG3q4Z8r3YmC4qPdFl0j5IwRAu8HxRm
-I2FBJZPiT6r/eOqR9B6oCu1j4ixJv5E7d6dC7c+M6K9odNCLf8wC3Z2Wnj9EwkNY
-qKQKKrJm+0VdC9kYTVmLJBGmGsnQQJlqHB5pdMFuT8EHEGzBgO3SSVIrA4Q6M3SY
-vNX4qwVhH0+aPWOrfP5W7eNL2P2rk2v7mMGO8foDqRm0f2Ey2Xo10ck0cD3cEqZm
-I2kA5v3RMPPdnXsXBCAX7GsAnYaCTYZ8bEjEbOZmoTVsFmFi4RHw0aMPPvH9e7mC
-zwIDAQAB
------END PUBLIC KEY-----"""
-
-# MUST set environment variables before importing anything from app
+# Don't set JWT_PRIVATE_KEY - let it fall back to HS256 with SECRET_KEY
 os.environ["APP_ENV"] = "testing"
 os.environ["DEBUG"] = "true"
-os.environ["JWT_PRIVATE_KEY"] = TEST_PRIVATE_KEY
-os.environ["JWT_PUBLIC_KEY"] = TEST_PUBLIC_KEY
+os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only-not-for-production"
 # Use in-memory SQLite for tests - fastest option
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# Disable Redis for tests
+os.environ["REDIS_URL"] = ""
 
 # Now safe to import
 from typing import AsyncGenerator
 from uuid import uuid4
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -70,6 +35,35 @@ from app.main import app
 def auth_header(token: str) -> dict:
     """Create authorization header with Bearer token."""
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def mock_redis(monkeypatch):
+    """Mock Redis for all tests."""
+    mock_redis_client = MagicMock()
+    mock_redis_client.get = AsyncMock(return_value=None)
+    mock_redis_client.set = AsyncMock(return_value=True)
+    mock_redis_client.setex = AsyncMock(return_value=True)
+    mock_redis_client.delete = AsyncMock(return_value=True)
+    mock_redis_client.exists = AsyncMock(return_value=0)
+    mock_redis_client.incr = AsyncMock(return_value=1)
+    mock_redis_client.expire = AsyncMock(return_value=True)
+    mock_redis_client.ttl = AsyncMock(return_value=-2)
+    mock_redis_client.ping = AsyncMock(return_value=True)
+    mock_redis_client.close = AsyncMock()
+    
+    # Mock the get_redis function
+    async def mock_get_redis():
+        return mock_redis_client
+    
+    try:
+        from app.core import redis as redis_module
+        monkeypatch.setattr(redis_module, "get_redis", mock_get_redis)
+        monkeypatch.setattr(redis_module, "redis_client", mock_redis_client)
+    except (ImportError, AttributeError):
+        pass  # Redis module might not exist or have different structure
+    
+    return mock_redis_client
 
 
 @pytest_asyncio.fixture
@@ -203,7 +197,7 @@ async def test_project(db_session: AsyncSession, admin_user: User) -> Project:
         id=uuid4(),
         name="Test Project",
         description="A test project for testing purposes",
-        created_by=admin_user.id,
+        created_by_id=admin_user.id,
         is_archived=False,
     )
     db_session.add(project)
