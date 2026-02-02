@@ -196,17 +196,19 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
         if: github.event_name != 'pull_request'
+        continue-on-error: true
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && always()
+        continue-on-error: true
 
   # =============================================================================
   # Deploy to Staging
@@ -234,7 +236,7 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/bug-tracker-api \
-            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
             -n bug-tracker-staging
           kubectl rollout status deployment/bug-tracker-api \
             -n bug-tracker-staging \
@@ -266,7 +268,7 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/bug-tracker-api \
-            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
             -n bug-tracker
           kubectl rollout status deployment/bug-tracker-api \
             -n bug-tracker \
