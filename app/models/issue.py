@@ -6,10 +6,10 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import GUID
 
 if TYPE_CHECKING:
     from app.models.comment import Comment
@@ -57,7 +57,7 @@ class Issue(Base):
 
     # Primary key
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4,
         index=True,
@@ -90,7 +90,7 @@ class Issue(Base):
 
     # Project reference (cascade on delete)
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -98,7 +98,7 @@ class Issue(Base):
 
     # Reporter reference (restrict on delete - prevents user deletion if they reported issues)
     reporter_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
@@ -106,7 +106,7 @@ class Issue(Base):
 
     # Assignee reference (set null on delete)
     assignee_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

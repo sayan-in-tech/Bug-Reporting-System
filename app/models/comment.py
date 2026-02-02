@@ -5,10 +5,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Text, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.types import GUID
 
 if TYPE_CHECKING:
     from app.models.issue import Issue
@@ -25,7 +25,7 @@ class Comment(Base):
 
     # Primary key
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         primary_key=True,
         default=uuid.uuid4,
         index=True,
@@ -39,7 +39,7 @@ class Comment(Base):
 
     # Issue reference (cascade on delete)
     issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("issues.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -47,7 +47,7 @@ class Comment(Base):
 
     # Author reference (restrict on delete - prevents user deletion if they authored comments)
     author_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,

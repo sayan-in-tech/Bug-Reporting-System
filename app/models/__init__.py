@@ -3,6 +3,7 @@
 from app.models.comment import Comment
 from app.models.issue import Issue, IssuePriority, IssueStatus
 from app.models.project import Project
+from app.models.types import GUID
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     "IssueStatus",
     "IssuePriority",
     "Comment",
+    "GUID",
 ]
