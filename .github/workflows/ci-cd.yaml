@@ -12,7 +12,8 @@ on:
 env:
   PYTHON_VERSION: "3.12"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Image name must be lowercase for Docker - using lowercase repo name
+  IMAGE_NAME: sayan-in-tech/bug-reporting-system
 
 jobs:
   # =============================================================================
