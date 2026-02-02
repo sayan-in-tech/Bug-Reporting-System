@@ -20,14 +20,27 @@ class Base(DeclarativeBase):
     pass
 
 
+def _create_engine():
+    """Create the async engine with appropriate settings for the database type."""
+    # SQLite doesn't support pool_size/max_overflow
+    if settings.database_url.startswith("sqlite"):
+        return create_async_engine(
+            settings.database_url,
+            echo=settings.database_echo,
+        )
+    else:
+        # PostgreSQL and other databases support connection pooling
+        return create_async_engine(
+            settings.database_url,
+            echo=settings.database_echo,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_overflow,
+            pool_pre_ping=True,
+        )
+
+
 # Create async engine
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.database_echo,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    pool_pre_ping=True,
-)
+engine = _create_engine()
 
 # Create async session factory
 async_session_maker = async_sessionmaker(
