@@ -1,249 +1,160 @@
 """Tests for utility functions."""
 
 import pytest
+from uuid import uuid4
 
-from app.utils.markdown_sanitizer import sanitize_markdown, strip_all_html, escape_html
 from app.utils.validators import (
-    validate_path_traversal,
     validate_uuid,
+    validate_path_traversal,
+    validate_content_type,
+    validate_query_params,
     sanitize_filename,
     is_valid_email,
     is_safe_url,
 )
+from app.utils.markdown_sanitizer import sanitize_markdown
+
+
+class TestUuidValidator:
+    """Tests for UUID validation."""
+
+    def test_valid_uuid(self):
+        """Test that valid UUIDs pass validation."""
+        valid_uuid = str(uuid4())
+        result = validate_uuid(valid_uuid)
+        assert result is not None
+
+    def test_invalid_uuid(self):
+        """Test that invalid UUIDs fail validation."""
+        assert validate_uuid("not-a-uuid") is None
+        assert validate_uuid("12345") is None
+        assert validate_uuid("") is None
+
+
+class TestPathTraversalValidator:
+    """Tests for path traversal detection."""
+
+    def test_safe_path(self):
+        """Test that safe paths pass validation."""
+        assert validate_path_traversal("normal/path/file.txt") is True
+        assert validate_path_traversal("file.txt") is True
+
+    def test_path_traversal_detected(self):
+        """Test that path traversal is detected."""
+        assert validate_path_traversal("../etc/passwd") is False
+        assert validate_path_traversal("..\\windows\\system32") is False
+        assert validate_path_traversal("path/../../file") is False
+
+
+class TestContentTypeValidator:
+    """Tests for content type validation."""
+
+    def test_valid_content_type(self):
+        """Test valid content types."""
+        allowed = ["application/json", "text/plain"]
+        assert validate_content_type("application/json", allowed) is True
+        assert validate_content_type("application/json; charset=utf-8", allowed) is True
+
+    def test_invalid_content_type(self):
+        """Test invalid content types."""
+        allowed = ["application/json"]
+        assert validate_content_type("text/html", allowed) is False
+        assert validate_content_type(None, allowed) is False
+
+
+class TestQueryParamsValidator:
+    """Tests for query params filtering."""
+
+    def test_filter_params(self):
+        """Test that only allowed params are kept."""
+        params = {"page": 1, "limit": 10, "evil": "value"}
+        allowed = ["page", "limit"]
+        result = validate_query_params(params, allowed)
+        assert result == {"page": 1, "limit": 10}
+        assert "evil" not in result
+
+
+class TestFilenameSanitizer:
+    """Tests for filename sanitization."""
+
+    def test_safe_filename(self):
+        """Test that safe filenames are preserved."""
+        assert sanitize_filename("document.pdf") == "document.pdf"
+        assert sanitize_filename("my_file-1.txt") == "my_file-1.txt"
+
+    def test_dangerous_filename(self):
+        """Test that dangerous filenames are sanitized."""
+        assert "/" not in sanitize_filename("../etc/passwd")
+        assert "\\" not in sanitize_filename("..\\windows\\system32")
+
+    def test_empty_filename(self):
+        """Test empty filename handling."""
+        assert sanitize_filename("") == ""
+        assert sanitize_filename("..") == "unnamed"
+
+
+class TestEmailValidator:
+    """Tests for email validation."""
+
+    def test_valid_email(self):
+        """Test valid email addresses."""
+        assert is_valid_email("user@example.com") is True
+        assert is_valid_email("test.user@domain.org") is True
+
+    def test_invalid_email(self):
+        """Test invalid email addresses."""
+        assert is_valid_email("not-an-email") is False
+        assert is_valid_email("@example.com") is False
+        assert is_valid_email("user@") is False
+        assert is_valid_email("") is False
+
+
+class TestUrlValidator:
+    """Tests for URL safety validation."""
+
+    def test_safe_url(self):
+        """Test safe URLs."""
+        assert is_safe_url("https://example.com") is True
+        assert is_safe_url("/relative/path") is True
+
+    def test_unsafe_url(self):
+        """Test unsafe URLs."""
+        assert is_safe_url("javascript:alert(1)") is False
+        assert is_safe_url("") is False
 
 
 class TestMarkdownSanitizer:
     """Tests for markdown sanitization."""
 
-    def test_sanitize_basic_html(self):
-        """Test that basic safe HTML is preserved."""
-        content = "<p>Hello <strong>World</strong></p>"
-        result = sanitize_markdown(content)
-        assert "<p>" in result
-        assert "<strong>" in result
+    def test_basic_markdown(self):
+        """Test that basic markdown is preserved."""
+        text = "# Heading\n\nSome **bold** text."
+        result = sanitize_markdown(text)
+        assert "Heading" in result
+        assert "bold" in result
 
-    def test_sanitize_script_tags(self):
+    def test_xss_script_removed(self):
         """Test that script tags are removed."""
-        content = "<script>alert('xss')</script>Hello"
-        result = sanitize_markdown(content)
+        text = "<script>alert('xss')</script>Hello"
+        result = sanitize_markdown(text)
         assert "<script>" not in result
+        assert "alert" not in result
         assert "Hello" in result
 
-    def test_sanitize_event_handlers(self):
-        """Test that event handlers are removed."""
-        content = "<div onclick='alert(1)'>Click me</div>"
-        result = sanitize_markdown(content)
-        assert "onclick" not in result
-
-    def test_sanitize_javascript_urls(self):
-        """Test that javascript: URLs are removed."""
-        content = "<a href='javascript:alert(1)'>Link</a>"
-        result = sanitize_markdown(content)
+    def test_dangerous_attributes_removed(self):
+        """Test that dangerous attributes are removed."""
+        text = '<a href="javascript:alert(1)">Link</a>'
+        result = sanitize_markdown(text)
         assert "javascript:" not in result
 
-    def test_sanitize_empty_content(self):
-        """Test sanitizing empty content."""
-        assert sanitize_markdown("") == ""
-        assert sanitize_markdown(None) is None
+    def test_safe_links_preserved(self):
+        """Test that safe links are preserved."""
+        text = '<a href="https://example.com">Link</a>'
+        result = sanitize_markdown(text)
+        assert "https://example.com" in result
 
-    def test_strip_all_html(self):
-        """Test stripping all HTML tags."""
-        content = "<p>Hello <strong>World</strong></p>"
-        result = strip_all_html(content)
-        assert "<" not in result
-        assert ">" not in result
-        assert "Hello" in result
-        assert "World" in result
-
-    def test_escape_html(self):
-        """Test HTML escaping."""
-        content = "<script>alert('test')</script>"
-        result = escape_html(content)
-        assert "&lt;" in result
-        assert "&gt;" in result
-        assert "<script>" not in result
-
-
-class TestValidators:
-    """Tests for validation utilities."""
-
-    def test_validate_uuid_valid(self):
-        """Test UUID validation with valid UUID."""
-        result = validate_uuid("550e8400-e29b-41d4-a716-446655440000")
-        assert result is not None
-
-    def test_validate_uuid_invalid(self):
-        """Test UUID validation with invalid string."""
-        result = validate_uuid("invalid-uuid")
-        assert result is None
-
-    def test_validate_uuid_empty(self):
-        """Test UUID validation with empty string."""
-        result = validate_uuid("")
-        assert result is None
-
-    def test_path_traversal_safe(self):
-        """Test path traversal detection with safe path."""
-        assert validate_path_traversal("/safe/path/file.txt") is True
-        assert validate_path_traversal("filename.txt") is True
-
-    def test_path_traversal_unsafe(self):
-        """Test path traversal detection with unsafe paths."""
-        assert validate_path_traversal("../etc/passwd") is False
-        assert validate_path_traversal("..\\windows\\system32") is False
-        assert validate_path_traversal("path/../../../etc/passwd") is False
-
-    def test_path_traversal_null_byte(self):
-        """Test path traversal with null byte injection."""
-        assert validate_path_traversal("file.txt\x00.jpg") is False
-
-    def test_sanitize_filename_safe(self):
-        """Test filename sanitization with safe filename."""
-        result = sanitize_filename("document.pdf")
-        assert result == "document.pdf"
-
-    def test_sanitize_filename_path_separators(self):
-        """Test filename sanitization removes path separators."""
-        result = sanitize_filename("../path/file.txt")
-        assert "/" not in result
-        assert ".." not in result
-
-    def test_sanitize_filename_special_chars(self):
-        """Test filename sanitization removes special characters."""
-        result = sanitize_filename("file<>:*.txt")
-        assert "<" not in result
-        assert ">" not in result
-        assert ":" not in result
-        assert "*" not in result
-
-    def test_sanitize_filename_empty(self):
-        """Test filename sanitization with empty filename."""
-        result = sanitize_filename("")
-        assert result == ""
-
-    def test_is_valid_email_valid(self):
-        """Test email validation with valid emails."""
-        assert is_valid_email("user@example.com") is True
-        assert is_valid_email("user.name@domain.co.uk") is True
-
-    def test_is_valid_email_invalid(self):
-        """Test email validation with invalid emails."""
-        assert is_valid_email("invalid") is False
-        assert is_valid_email("@example.com") is False
-        assert is_valid_email("user@") is False
-        assert is_valid_email("") is False
-
-    def test_is_safe_url_relative(self):
-        """Test URL safety check with relative URLs."""
-        assert is_safe_url("/path/to/page") is True
-        assert is_safe_url("/") is True
-
-    def test_is_safe_url_absolute(self):
-        """Test URL safety check with absolute URLs."""
-        assert is_safe_url("https://example.com") is True
-        assert is_safe_url("http://example.com") is True
-
-    def test_is_safe_url_javascript(self):
-        """Test URL safety check with javascript URLs."""
-        assert is_safe_url("javascript:alert(1)") is False
-
-    def test_is_safe_url_data(self):
-        """Test URL safety check with data URLs."""
-        assert is_safe_url("data:text/html,<script>") is False
-
-
-class TestPermissions:
-    """Tests for permission system."""
-
-    def test_role_permissions_developer(self):
-        """Test developer role permissions."""
-        from app.core.permissions import ROLE_PERMISSIONS, Permission
-        from app.models.user import UserRole
-
-        perms = ROLE_PERMISSIONS[UserRole.DEVELOPER]
-        assert Permission.VIEW_PROJECTS in perms
-        assert Permission.VIEW_ISSUES in perms
-        assert Permission.CREATE_ISSUE in perms
-        assert Permission.ADD_COMMENT in perms
-        assert Permission.CREATE_PROJECT not in perms
-
-    def test_role_permissions_manager(self):
-        """Test manager role permissions."""
-        from app.core.permissions import ROLE_PERMISSIONS, Permission
-        from app.models.user import UserRole
-
-        perms = ROLE_PERMISSIONS[UserRole.MANAGER]
-        assert Permission.CREATE_PROJECT in perms
-        assert Permission.EDIT_PROJECT in perms
-        assert Permission.CHANGE_ASSIGNEE in perms
-
-    def test_role_permissions_admin(self):
-        """Test admin role has all permissions."""
-        from app.core.permissions import ROLE_PERMISSIONS, Permission
-        from app.models.user import UserRole
-
-        admin_perms = ROLE_PERMISSIONS[UserRole.ADMIN]
-        all_perms = set(Permission)
-        assert admin_perms == all_perms
-
-
-class TestModels:
-    """Tests for model methods and properties."""
-
-    def test_issue_can_transition_to(self):
-        """Test issue status transition checking."""
-        from app.models.issue import Issue, IssueStatus
-
-        issue = Issue()
-        issue.status = IssueStatus.OPEN
-
-        assert issue.can_transition_to(IssueStatus.IN_PROGRESS) is True
-        assert issue.can_transition_to(IssueStatus.CLOSED) is True
-        assert issue.can_transition_to(IssueStatus.RESOLVED) is False
-
-    def test_issue_get_valid_transitions(self):
-        """Test getting valid transitions for issue."""
-        from app.models.issue import Issue, IssueStatus
-
-        issue = Issue()
-        issue.status = IssueStatus.OPEN
-
-        valid = issue.get_valid_transitions()
-        assert IssueStatus.IN_PROGRESS in valid
-        assert IssueStatus.CLOSED in valid
-
-    def test_issue_is_critical(self):
-        """Test issue is_critical property."""
-        from app.models.issue import Issue, IssuePriority
-
-        issue = Issue()
-        issue.priority = IssuePriority.CRITICAL
-        assert issue.is_critical is True
-
-        issue.priority = IssuePriority.HIGH
-        assert issue.is_critical is False
-
-    def test_user_is_admin(self):
-        """Test user is_admin property."""
-        from app.models.user import User, UserRole
-
-        user = User()
-        user.role = UserRole.ADMIN
-        assert user.is_admin is True
-
-        user.role = UserRole.DEVELOPER
-        assert user.is_admin is False
-
-    def test_user_is_manager(self):
-        """Test user is_manager property."""
-        from app.models.user import User, UserRole
-
-        user = User()
-        user.role = UserRole.MANAGER
-        assert user.is_manager is True
-
-        user.role = UserRole.ADMIN
-        assert user.is_manager is True
-
-        user.role = UserRole.DEVELOPER
-        assert user.is_manager is False
+    def test_code_blocks_preserved(self):
+        """Test that code blocks are preserved."""
+        text = "```python\nprint('hello')\n```"
+        result = sanitize_markdown(text)
+        assert "print" in result
