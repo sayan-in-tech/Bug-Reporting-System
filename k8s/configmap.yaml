@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bug-tracker-config
+  namespace: bug-tracker
+  labels:
+    app.kubernetes.io/name: bug-tracker
+    app.kubernetes.io/component: config
+data:
+  # Application settings
+  APP_ENV: "production"
+  APP_NAME: "Bug Reporting System"
+  DEBUG: "false"
+  API_V1_PREFIX: "/api"
+
+  # Server settings
+  HOST: "0.0.0.0"
+  PORT: "8000"
+
+  # Database settings (host/port only, credentials in secrets)
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "bug_tracker"
+  DATABASE_POOL_SIZE: "20"
+  DATABASE_MAX_OVERFLOW: "10"
+
+  # Redis settings (host/port only, password in secrets)
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+  # JWT settings
+  JWT_ALGORITHM: "RS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+
+  # Rate limiting
+  RATE_LIMIT_PER_MINUTE: "100"
+  LOGIN_RATE_LIMIT_PER_MINUTE: "5"
+  ACCOUNT_LOCKOUT_THRESHOLD: "5"
+  ACCOUNT_LOCKOUT_DURATION_MINUTES: "15"
+
+  # Logging
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+
+  # CORS (update for your domain)
+  CORS_ORIGINS: "https://your-domain.com"

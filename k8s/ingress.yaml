@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bug-tracker-ingress
+  namespace: bug-tracker
+  labels:
+    app.kubernetes.io/name: bug-tracker
+    app.kubernetes.io/component: ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.bug-tracker.example.com
+      secretName: bug-tracker-tls
+  rules:
+    - host: api.bug-tracker.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bug-tracker-api
+                port:
+                  name: http
+
+---
+# Certificate (for cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bug-tracker-cert
+  namespace: bug-tracker
+spec:
+  secretName: bug-tracker-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: api.bug-tracker.example.com
+  dnsNames:
+    - api.bug-tracker.example.com

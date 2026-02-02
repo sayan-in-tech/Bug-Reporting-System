@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+docs/_build/
+
+# Docker
+.docker/
+
+# Local env
+.env
+.env.local
+*.log
+
+# Kubernetes
+k8s/secrets.yaml
+
+# Certificates
+*.pem
+*.key
+*.crt
+nginx/ssl/
+
+# Misc
+*.md
+!README.md
+.DS_Store
+Thumbs.db
