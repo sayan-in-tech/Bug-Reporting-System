@@ -114,12 +114,10 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          # Use SQLite for tests (faster, no external dependencies)
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           APP_ENV: testing
           DEBUG: "true"
           SECRET_KEY: test-secret-key-for-ci-testing-only
-          # No JWT keys - uses HS256 with SECRET_KEY as fallback
           REDIS_URL: ""
         run: |
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=50 --timeout=60
