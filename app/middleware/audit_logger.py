@@ -1,6 +1,6 @@
 """Audit logging middleware."""
 
-import json
+import logging
 import time
 from typing import Any, Optional
 from uuid import uuid4
@@ -11,6 +11,15 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.config import settings
+
+# Map log level string to logging constants
+LOG_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 
 # Configure structured logging
 structlog.configure(
@@ -25,7 +34,7 @@ structlog.configure(
         else structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(
-        getattr(structlog, settings.log_level.upper(), structlog.INFO)
+        LOG_LEVELS.get(settings.log_level.upper(), logging.INFO)
     ),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),

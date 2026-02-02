@@ -27,11 +27,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     }
 
-    # Content Security Policy
-    CSP_DIRECTIVES = {
+    # Content Security Policy (strict)
+    CSP_DIRECTIVES_STRICT = {
         "default-src": "'self'",
         "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'",  # unsafe-inline for Swagger UI
+        "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' data: https:",
         "font-src": "'self'",
         "connect-src": "'self'",
@@ -39,6 +39,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "form-action": "'self'",
         "base-uri": "'self'",
     }
+
+    # Content Security Policy (relaxed for Swagger UI in debug mode)
+    CSP_DIRECTIVES_DEBUG = {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+        "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+        "img-src": "'self' data: https: https://fastapi.tiangolo.com",
+        "font-src": "'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+        "connect-src": "'self'",
+        "frame-ancestors": "'none'",
+        "form-action": "'self'",
+        "base-uri": "'self'",
+    }
+
+    # Paths that need relaxed CSP for documentation UI
+    DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -50,8 +66,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         for header, value in self.SECURITY_HEADERS.items():
             response.headers[header] = value
 
-        # Add Content-Security-Policy
-        csp = "; ".join(f"{k} {v}" for k, v in self.CSP_DIRECTIVES.items())
+        # Use relaxed CSP for docs pages in debug mode, strict CSP otherwise
+        if settings.debug and request.url.path in self.DOCS_PATHS:
+            csp_directives = self.CSP_DIRECTIVES_DEBUG
+        else:
+            csp_directives = self.CSP_DIRECTIVES_STRICT
+
+        csp = "; ".join(f"{k} {v}" for k, v in csp_directives.items())
         response.headers["Content-Security-Policy"] = csp
 
         # Add HSTS header in production
