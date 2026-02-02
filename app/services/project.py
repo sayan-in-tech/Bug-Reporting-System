@@ -116,13 +116,29 @@ class ProjectService:
         """Archive a project (soft delete)."""
         project.is_archived = True
         await self.db.flush()
-        return project
+
+        # Reload with relationships to avoid MissingGreenlet errors
+        result = await self.db.execute(
+            select(Project)
+            .options(selectinload(Project.creator))
+            .options(selectinload(Project.issues))
+            .where(Project.id == project.id)
+        )
+        return result.scalar_one()
 
     async def unarchive(self, project: Project) -> Project:
         """Unarchive a project."""
         project.is_archived = False
         await self.db.flush()
-        return project
+
+        # Reload with relationships to avoid MissingGreenlet errors
+        result = await self.db.execute(
+            select(Project)
+            .options(selectinload(Project.creator))
+            .options(selectinload(Project.issues))
+            .where(Project.id == project.id)
+        )
+        return result.scalar_one()
 
     async def list_projects(
         self,

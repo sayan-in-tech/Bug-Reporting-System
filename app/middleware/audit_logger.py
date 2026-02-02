@@ -109,7 +109,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
         # Log authentication-related requests with more detail
         if "/auth/" in request.url.path:
-            log_context["event"] = "auth_request"
+            log_context["auth_event_type"] = "auth_request"
 
         logger.info("request_started", **log_context)
 
@@ -119,12 +119,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         # Calculate duration
         duration_ms = (time.time() - start_time) * 1000
 
-        # Get user ID if authenticated
-        user_id = getattr(request.state, "user", None)
-        if user_id and hasattr(user_id, "id"):
-            user_id = str(user_id.id)
-        else:
-            user_id = None
+        # Get user ID if authenticated (stored as string to avoid DetachedInstanceError)
+        user_id = getattr(request.state, "user_id", None)
 
         # Log response
         response_context = {
@@ -200,7 +196,7 @@ def log_auth_event(
     """
     context = {
         "event_type": "auth",
-        "event": event,
+        "auth_action": event,
         "success": success,
         "ip_address": ip_address,
         "request_id": request_id,

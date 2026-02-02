@@ -85,8 +85,8 @@ async def get_current_user(
     if not user.is_active:
         raise AuthenticationError(message="Account is deactivated")
 
-    # Store user in request state for permission checks
-    request.state.user = user
+    # Store user ID in request state for logging (avoid DetachedInstanceError)
+    request.state.user_id = str(user.id)
 
     return user
 
